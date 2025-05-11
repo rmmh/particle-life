@@ -45,7 +45,7 @@ function randomSeed() {
     return (Math.random() * (2 ** 32)) >>> 0;
 }
 
-const particleDescription = 
+const particleDescription =
 `
 struct Particle
 {
@@ -123,7 +123,7 @@ fn getBinInfo(position : vec2f, simulationOptions : SimulationOptions) -> BinInf
 }
 `;
 
-const binFillSizeShader = 
+const binFillSizeShader =
 `
 ${particleDescription}
 ${simulationOptionsDescription}
@@ -159,7 +159,7 @@ fn fillBinSize(@builtin(global_invocation_id) id : vec3u)
 }
 `;
 
-const binPrefixSumShader = 
+const binPrefixSumShader =
 `
 @group(0) @binding(0) var<storage, read> source : array<u32>;
 @group(0) @binding(1) var<storage, read_write> destination : array<u32>;
@@ -180,7 +180,7 @@ fn prefixSumStep(@builtin(global_invocation_id) id : vec3u)
 }
 `;
 
-const particleSortShader = 
+const particleSortShader =
 `
 ${particleDescription}
 ${simulationOptionsDescription}
@@ -218,7 +218,7 @@ fn sortParticles(@builtin(global_invocation_id) id : vec3u)
 }
 `;
 
-const particleComputeForcesShader = 
+const particleComputeForcesShader =
 `
 ${particleDescription}
 ${forceDescription}
@@ -364,7 +364,7 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u)
         if (particle.x < simulationOptions.left) {
             particle.x += width;
         }
-    
+
         if (particle.x > simulationOptions.right) {
             particle.x -= width;
         }
@@ -372,7 +372,7 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u)
         if (particle.y < simulationOptions.bottom) {
             particle.y += height;
         }
-    
+
         if (particle.y > simulationOptions.top) {
             particle.y -= height;
         }
@@ -596,7 +596,7 @@ fn dither(x : vec3f, n : f32) -> vec3f
 @fragment
 fn fragmentMain(in : VertexOut) -> @location(0) vec4f
 {
-    var sample = textureLoad(hdrTexture, vec2i(in.position.xy), 0); 
+    var sample = textureLoad(hdrTexture, vec2i(in.position.xy), 0);
     let noise = textureLoad(blueNoiseTexture, vec2u(in.position.xy) % textureDimensions(blueNoiseTexture), 0).r;
 
     var color = sample.rgb;
@@ -809,7 +809,7 @@ function redraw()
         }
         queryHelper.start();
     }
- 
+
     const encoder = device.createCommandEncoder({});
 
     if (!paused) {
@@ -863,7 +863,7 @@ function redraw()
 
         advanceComputePass.end();
     }
- 
+
     const hdrRenderPass = encoder.beginRenderPass({
         colorAttachments: [
             {
@@ -899,7 +899,7 @@ function redraw()
         hdrRenderPass.draw(particleCount * 6);
     }
     hdrRenderPass.end();
- 
+
     const composeRenderPass = encoder.beginRenderPass({
         colorAttachments: [
             {
@@ -920,7 +920,7 @@ function redraw()
         encoder.resolveQuerySet(queryHelper.querySet, 0, queryHelper.querySet.count, queryHelper.resolveBuffer, 0);
         encoder.copyBufferToBuffer(queryHelper.resolveBuffer, 0, queryHelper.readBuffer, 0, queryHelper.resolveBuffer.size);
     }
- 
+
     const commandBuffer = encoder.finish();
     device.queue.submit([commandBuffer]);
 
@@ -974,7 +974,7 @@ function reloadForces(systemDescription)
             forces[4 * (i * speciesCount + j) + 3] = systemDescription.species[i].forces[j].collisionRadius;
         }
     }
-    
+
     device.queue.writeBuffer(forcesBuffer, 0, forces);
 }
 
@@ -1038,7 +1038,7 @@ function loadSystem(systemDescription)
         size: speciesCount * 16,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE,
     });
-    
+
     device.queue.writeBuffer(speciesBuffer, 0, species);
 
     forcesBuffer = device.createBuffer({
@@ -1296,6 +1296,20 @@ function symmetrizeForces(systemDescription)
     }
 }
 
+// https://stackoverflow.com/a/64090995/3694
+function hsl2rgb(h,s,l)
+{
+   let a=s*Math.min(l,1-l);
+   let f=(n,k=(n+h/30)%12) => l - a*Math.max(Math.min(k-3,9-k,1),-1);
+   return [f(0),f(8),f(4)];
+}
+
+// https://stackoverflow.com/a/20129594/3694
+function selectColor(number) {
+  const hue = number * 137.508; // use golden angle approximation
+  return hsl2rgb(hue, .5, .75); // `hsl(${hue},50%,75%)`;
+}
+
 function generateSystem(systemDescription)
 {
     const speciesCount = systemDescription.species.length;
@@ -1305,10 +1319,11 @@ function generateSystem(systemDescription)
 
     for (var i = 0; i < speciesCount; ++i)
     {
+        const [r, g, b] = selectColor(i);
         const color = [
-            Math.pow(0.25 + rng() * 0.75, 2.2),
-            Math.pow(0.25 + rng() * 0.75, 2.2),
-            Math.pow(0.25 + rng() * 0.75, 2.2),
+            Math.pow(r, 4.2),
+            Math.pow(g, 4.2),
+            Math.pow(b, 4.2),
             1.0,
         ];
 
@@ -1400,7 +1415,7 @@ function resize()
 {
     if (!canvas)
         return;
-    
+
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -1463,7 +1478,7 @@ async function init()
         ];
 
         event.preventDefault();
-    }, false);    
+    }, false);
 
     canvas.addEventListener('mousedown', function(event) {
         if (event.button == 0) {
@@ -2265,7 +2280,7 @@ async function loadSettings()
 }
 
 async function copyUrl()
-{    
+{
     if (customRules) {
         alert("Copying URL might not work correctly with custom rules");
     }
@@ -2535,7 +2550,7 @@ async function fullscreen()
                     <td><div class="button" id="fullscreenButton" onclick="fullscreen();">Fullscreen</div></td>
                 </tr>
             </table>
-            
+
             <div class="rowBreak"></div>
             <div><center>[S] or three-tap to hide this menu</center></div>
             <div><center>LMB or double-tap to interact</center></div>
