@@ -73,6 +73,7 @@ struct Force
     radius: f32,
     collisionStrength : f32,
     collisionRadius: f32,
+    transformChance: f32,
 }
 `;
 
@@ -240,6 +241,7 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u)
 
     var particle = particlesSource[id.x];
     let species = u32(particle.species);
+    var newSpecies = species;
 
     let binInfo = getBinInfo(vec2f(particle.x, particle.y), simulationOptions);
 
@@ -304,6 +306,9 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u)
 
                     totalForce += force.strength * max(0.0, 1.0 - d / force.radius) * n;
                     totalForce -= force.collisionStrength * max(0.0, 1.0 - d / force.collisionRadius) * n;
+                    if (force.transformChance > 0 && d < force.collisionRadius && force.transformChance > random(vec4(f32(id.x*j), particle.vx, particle.x+particle.y, other.x+other.y))) {
+                        newSpecies = u32(other.species);
+                    }
                 }
             }
         }
@@ -312,8 +317,14 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u)
     // Assume mass = 1
     particle.vx += totalForce.x * simulationOptions.dt;
     particle.vy += totalForce.y * simulationOptions.dt;
+    particle.species = f32(newSpecies);
 
     particlesDestination[id.x] = particle;
+}
+
+fn random(in: vec4f) -> f32 {
+    let dot_product = dot(in, vec4(12.9898,78.233,45.164,94.673));
+    return fract(sin(dot_product) * 43758.5453);
 }
 `;
 
@@ -747,6 +758,8 @@ function formatExecutionTime(x) {
     return result + " ms";
 }
 
+const forcesElementCount = 5;
+
 function redraw()
 {
     if (framesInFlight > 3) {
@@ -963,15 +976,16 @@ function centerView()
 
 function reloadForces(systemDescription)
 {
-    const forces = new Float32Array(speciesCount * speciesCount * 4);
+    const forces = new Float32Array(speciesCount * speciesCount * forcesElementCount);
     for (var i = 0; i < speciesCount; ++i)
     {
         for (var j = 0; j < speciesCount; ++j)
         {
-            forces[4 * (i * speciesCount + j) + 0] = systemDescription.species[i].forces[j].strength;
-            forces[4 * (i * speciesCount + j) + 1] = systemDescription.species[i].forces[j].radius;
-            forces[4 * (i * speciesCount + j) + 2] = Math.abs(systemDescription.species[i].forces[j].collisionStrength);
-            forces[4 * (i * speciesCount + j) + 3] = systemDescription.species[i].forces[j].collisionRadius;
+            forces[forcesElementCount * (i * speciesCount + j) + 0] = systemDescription.species[i].forces[j].strength;
+            forces[forcesElementCount * (i * speciesCount + j) + 1] = systemDescription.species[i].forces[j].radius;
+            forces[forcesElementCount * (i * speciesCount + j) + 2] = Math.abs(systemDescription.species[i].forces[j].collisionStrength);
+            forces[forcesElementCount * (i * speciesCount + j) + 3] = systemDescription.species[i].forces[j].collisionRadius;
+            forces[forcesElementCount * (i * speciesCount + j) + 4] = systemDescription.species[i].forces[j].transformChance;
         }
     }
 
@@ -1042,7 +1056,7 @@ function loadSystem(systemDescription)
     device.queue.writeBuffer(speciesBuffer, 0, species);
 
     forcesBuffer = device.createBuffer({
-        size: speciesCount * speciesCount * 16,
+        size: speciesCount * speciesCount * forcesElementCount * 4,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE,
     });
 
@@ -1338,6 +1352,7 @@ function generateSystem(systemDescription)
                 collisionStrength: collisionStrength,
                 radius: radius,
                 collisionRadius : collisionRadius,
+                transformChance: systemDescription.transformChance > Math.random() ? 0.1 : 0,
             });
         }
 
@@ -2222,6 +2237,18 @@ function updateCentralForce()
     document.getElementById("centralForceText").innerText = `Central force: ${newCentralForce}`;
 }
 
+function updateTransformChance()
+{
+    const newTransformChance = document.getElementById("transformChanceSlider").value / 100.0;
+
+    const systemDescription = currentSystemDescription;
+    systemDescription.transformChance = newTransformChance;
+
+    document.getElementById("transformChanceText").innerText = `Xform rate: ${newTransformChance}`;
+
+    loadSystem(generateSystem(systemDescription));
+}
+
 function updateSymmetricForces()
 {
     const newSymmetricForces = document.getElementById("symmetricForces").checked;
@@ -2499,6 +2526,12 @@ async function fullscreen()
             <div class="sliderContainer">
                 <input type="range" min="1" max="20" value="8" class="slider" id="speciesCountSlider" oninput="updateSpeciesCount();">
                 <span id="speciesCountText">8 particle types</span>
+            </div>
+            <div class="rowBreak"></div>
+            <div class="sliderContainer">
+                <input type="range" min="0" max="100" value="0" class="slider" id="transformChanceSlider"
+                    oninput="updateTransformChance()">
+                <span id="transformChanceText">Xform rate: 0</span>
             </div>
             <div class="rowBreak"></div>
             <div class="sliderContainer">
