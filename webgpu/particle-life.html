@@ -2158,7 +2158,7 @@ async function init()
         }
     });
 
-    const blueNoiseImage = await loadImage("/webgpu/blue-noise.png");
+    const blueNoiseImage = await loadImage("blue-noise.png");
     blueNoiseTexture = device.createTexture({
         format: 'rgba8unorm-srgb',
         size: [blueNoiseImage.width, blueNoiseImage.height],
