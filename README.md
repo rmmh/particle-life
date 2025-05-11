@@ -1,3 +1,3 @@
-http://lisyarus.github.io
+http://rmmh.github.io/particle-life/
 
-Not accepting contributions.
+Accepting contributions.
