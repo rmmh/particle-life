@@ -242,6 +242,7 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u)
     var particle = particlesSource[id.x];
     let species = u32(particle.species);
     var newSpecies = species;
+    var newSpeciesCount = 1;
 
     let binInfo = getBinInfo(vec2f(particle.x, particle.y), simulationOptions);
 
@@ -306,8 +307,11 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u)
 
                     totalForce += force.strength * max(0.0, 1.0 - d / force.radius) * n;
                     totalForce -= force.collisionStrength * max(0.0, 1.0 - d / force.collisionRadius) * n;
-                    if (force.transformChance > 0 && d < force.collisionRadius && force.transformChance > random(vec4(f32(id.x*j), particle.vx, particle.x+particle.y, other.x+other.y))) {
+                    if (force.transformChance > 0 && d < force.collisionRadius && force.transformChance > random(vec4(f32(id.x*j), particle.vx, particle.x+particle.y, other.x+other.y))
+                        // to avoid isotropic bias, replace newSpecies with a chance of 1/newSpeciesCount
+                        && random(vec4(f32(binX * 128 + binY), f32(newSpecies * 32) + f32(other.species), particle.vx, other.x+other.y)) < 1/f32(newSpeciesCount)) {
                         newSpecies = u32(other.species);
+                        newSpeciesCount++;
                     }
                 }
             }
@@ -1034,6 +1038,8 @@ function loadSystem(systemDescription)
     document.getElementById("frictionSlider").value = Math.round(friction);
     document.getElementById("frictionText").innerText = `Friction: ${friction}`;
     document.getElementById("loopingBorders").checked = loopingBorders;
+    document.getElementById("transformChanceSlider").value = 100 * systemDescription.transformChance;
+    document.getElementById("transformChanceText").innerText = `Xform rate: ${systemDescription.transformChance}`;
 
     gridSize = [Math.ceil(systemDescription.simulationSize[0] / maxForceRadius), Math.ceil(systemDescription.simulationSize[1] / maxForceRadius)];
     binCount = gridSize[0] * gridSize[1];
