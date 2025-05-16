@@ -1348,12 +1348,13 @@ function generateSystem(systemDescription)
             const collisionStrength = (5.0 + 15.0 * rng()) * Math.abs(strength);
             const radius = 2.0 + rng() * (maxForceRadius - 2.0);
             const collisionRadius = rng() * 0.5 * radius;
+            const transformChance = systemDescription.transformChance > 0 && systemDescription.transformChance > rng() ? 0.1 : 0;
             forces.push({
                 strength: strength,
                 collisionStrength: collisionStrength,
                 radius: radius,
-                collisionRadius : collisionRadius,
-                transformChance: systemDescription.transformChance > Math.random() ? 0.1 : 0,
+                collisionRadius: collisionRadius,
+                transformChance: transformChance,
             });
         }
 
@@ -1379,6 +1380,7 @@ function initialSystem()
     var centralForce = 0.0;
     var symmetricForces = false;
     var loopingBorders = false;
+    var transformChance = 0;
     var seed = randomSeed();
 
     const aspectRatio = window.screen.width / window.screen.height;
@@ -1414,9 +1416,13 @@ function initialSystem()
     if (urlParams.has("height"))
         height = Number(urlParams.get("height"));
 
+    if (urlParams.has("transformChance"))
+        transformChance = Number(urlParams.get("transformChance"));
+
     const systemDescription = {
         particleCount: particleCount,
         species: new Array(speciesCount),
+        transformChance: transformChance,
         simulationSize: [width, height],
         friction: friction,
         centralForce: centralForce,
@@ -2242,12 +2248,11 @@ function updateTransformChance()
 {
     const newTransformChance = document.getElementById("transformChanceSlider").value / 100.0;
 
-    const systemDescription = currentSystemDescription;
-    systemDescription.transformChance = newTransformChance;
+    currentSystemDescription.transformChance = newTransformChance;
 
     document.getElementById("transformChanceText").innerText = `Xform rate: ${newTransformChance}`;
 
-    loadSystem(generateSystem(systemDescription));
+    loadSystem(generateSystem(currentSystemDescription));
 }
 
 function updateSymmetricForces()
@@ -2315,6 +2320,9 @@ async function copyUrl()
 
     const location = window.location;
     var url = location.protocol + "//" + location.host + location.pathname + `?particleCount=${particleCount}&speciesCount=${speciesCount}&friction=${friction}&centralForce=${centralForce}&symmetricForces=${symmetricForces}&loopingBorders=${loopingBorders}&seed=${currentSystemDescription.seed}`;
+    if (currentSystemDescription.transformChance > 0) {
+        url += `&transformChance=${currentSystemDescription.transformChance}`;
+    }
 
     await navigator.clipboard.writeText(url);
 }
